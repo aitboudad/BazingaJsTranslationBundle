@@ -56,7 +56,11 @@ class Controller
             $translations[$locale] = array();
             $messages = $this->translator->getCatalogue($locale)->all($domain);
             if (!empty($messages)) {
-                $translations[$locale][$domain] = $messages;
+                if (null === $domain) {
+                    $translations[$locale] = $messages;
+                } else {
+                    $translations[$locale][$domain] = $messages;
+                }
             }
         }
 

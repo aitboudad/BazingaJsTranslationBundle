@@ -1,6 +1,6 @@
 (function (Translator) {
 {% if include_config %}
-    Translator.fallback      = '{{ fallback }}';
+    Translator.fallback      = '{{ fallbacks|first }}';
     Translator.defaultDomain = '{{ defaultDomain }}';
 {% endif %}
 {% for locale, domains in translations %}

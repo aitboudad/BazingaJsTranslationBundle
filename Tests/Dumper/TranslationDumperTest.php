@@ -17,12 +17,12 @@ class TranslationDumperTest extends WebTestCase
 
     public function setUp()
     {
-        $client    = static::createClient();
+        $client = static::createClient();
         $container = $client->getContainer();
 
-        $this->target     = sys_get_temp_dir() . '/bazinga/js-translation-bundle';
+        $this->target = sys_get_temp_dir().'/bazinga/js-translation-bundle';
         $this->filesystem = $container->get('filesystem');
-        $this->dumper     = $container->get('bazinga.jstranslation.translation_dumper');
+        $this->dumper = $container->get('bazinga.jstranslation.translation_dumper');
 
         $this->filesystem->mkdir($this->target);
     }
@@ -48,7 +48,7 @@ class TranslationDumperTest extends WebTestCase
             'numerics/en.js',
             'numerics/en.json',
         ) as $file) {
-            $this->assertFileExists($this->target . '/translations/' . $file);
+            $this->assertFileExists($this->target.'/translations/'.$file);
         }
 
         foreach (array(
@@ -59,7 +59,7 @@ class TranslationDumperTest extends WebTestCase
             'messages/es.js',
             'messages/es.json',
         ) as $file) {
-            $this->assertFileNotExists($this->target . '/translations/' . $file);
+            $this->assertFileNotExists($this->target.'/translations/'.$file);
         }
 
         $this->assertEquals(<<<JS
@@ -69,7 +69,7 @@ class TranslationDumperTest extends WebTestCase
 })(Translator);
 
 JS
-        , file_get_contents($this->target . '/translations/messages/fr.js'));
+        , file_get_contents($this->target.'/translations/messages/fr.js'));
 
         $this->assertEquals(<<<JS
 (function (Translator) {
@@ -78,7 +78,7 @@ JS
 })(Translator);
 
 JS
-        , file_get_contents($this->target . '/translations/messages/en.js'));
+        , file_get_contents($this->target.'/translations/messages/en.js'));
 
         $this->assertEquals(<<<JS
 (function (Translator) {
@@ -87,7 +87,7 @@ JS
 })(Translator);
 
 JS
-        , file_get_contents($this->target . '/translations/config.js'));
+        , file_get_contents($this->target.'/translations/config.js'));
 
         $this->assertEquals(<<<JSON
 {
@@ -95,7 +95,7 @@ JS
 }
 
 JSON
-        , file_get_contents($this->target . '/translations/messages/fr.json'));
+        , file_get_contents($this->target.'/translations/messages/fr.json'));
 
         $this->assertEquals(<<<JSON
 {
@@ -103,7 +103,7 @@ JSON
 }
 
 JSON
-        , file_get_contents($this->target . '/translations/messages/en.json'));
+        , file_get_contents($this->target.'/translations/messages/en.json'));
 
         $this->assertEquals(<<<JSON
 {
@@ -112,7 +112,7 @@ JSON
 }
 
 JSON
-        , file_get_contents($this->target . '/translations/config.json'));
+        , file_get_contents($this->target.'/translations/config.json'));
 
         $this->assertEquals(<<<JSON
 {
@@ -120,6 +120,6 @@ JSON
 }
 
 JSON
-        , file_get_contents($this->target . '/translations/numerics/en.json'));
+        , file_get_contents($this->target.'/translations/numerics/en.json'));
     }
 }

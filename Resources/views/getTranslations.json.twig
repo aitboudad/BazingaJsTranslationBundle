@@ -1,6 +1,6 @@
 {
 {% if include_config %}
-    "fallback": "{{ fallback }}",
+    "fallback": "{{ fallbacks|first }}",
     "defaultDomain": "{{ defaultDomain }}",
 {% endif %}
     "translations": {{ translations|json_encode|raw }}

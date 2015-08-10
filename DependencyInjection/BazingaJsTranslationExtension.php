@@ -18,7 +18,7 @@ class BazingaJsTranslationExtension extends Extension
      */
     public function load(array $configs, ContainerBuilder $container)
     {
-        $processor     = new Processor();
+        $processor = new Processor();
         $configuration = new Configuration($container->getParameter('kernel.debug'));
         $config = $processor->processConfiguration($configuration, $configs);
 
@@ -28,20 +28,11 @@ class BazingaJsTranslationExtension extends Extension
 
         $container
             ->getDefinition('bazinga.jstranslation.controller')
-            ->replaceArgument(5, $config['locale_fallback'])
-            ->replaceArgument(6, $config['default_domain'])
-            ->replaceArgument(7, $config['http_cache_time']);
-
-        // Add fallback locale to active locales if missing
-        if ($config['active_locales'] && !in_array($config['locale_fallback'], $config['active_locales'])) {
-            array_push($config['active_locales'], $config['locale_fallback']);
-        }
+            ->replaceArgument(2, $config['http_cache_time']);
 
         $container
             ->getDefinition('bazinga.jstranslation.translation_dumper')
-            ->replaceArgument(4, $config['locale_fallback'])
-            ->replaceArgument(5, $config['default_domain'])
-            ->replaceArgument(6, $config['active_locales'])
-            ->replaceArgument(7, $config['active_domains']);
+            ->replaceArgument(4, $config['active_locales'])
+            ->replaceArgument(5, $config['active_domains']);
     }
 }

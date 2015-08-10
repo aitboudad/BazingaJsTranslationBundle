@@ -2,10 +2,10 @@
 
 namespace Bazinga\Bundle\JsTranslationBundle\Dumper;
 
-use Bazinga\Bundle\JsTranslationBundle\Finder\TranslationFinder;
 use Symfony\Component\Templating\EngineInterface;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Bazinga\Bundle\JsTranslationBundle\Translator\BazingaJsTranslator;
 
 /**
  * @author Adrien Russo <adrien.russo.qc@gmail.com>
@@ -18,19 +18,14 @@ class TranslationDumper
     private $engine;
 
     /**
-     * @var TranslationFinder
+     * @var BazingaJsTranslator
      */
-    private $finder;
+    private $translator;
 
     /**
      * @var RouterInterface
      */
     private $router;
-
-    /**
-     * @var array
-     */
-    private $loaders = array();
 
     /**
      * @var Filesystem
@@ -48,45 +43,33 @@ class TranslationDumper
     private $activeDomains;
 
     /**
-     * @var string
-     */
-    private $localeFallback;
-
-    /**
-     * @var string
-     */
-    private $defaultDomain;
-
-    /**
-     * @param EngineInterface   $engine         The engine.
-     * @param TranslationFinder $finder         The translation finder.
-     * @param RouterInterface   $router         The router.
-     * @param FileSystem        $filesystem     The file system.
-     * @param string            $localeFallback
-     * @param string            $defaultDomain
+     * @param EngineInterface     $engine         The engine.
+     * @param BazingaJsTranslator $translator     The translation translator.
+     * @param RouterInterface     $router         The router.
+     * @param FileSystem          $filesystem     The file system.
+     * @param array               $activeLocales.
+     * @param array               $activeDomains.
      */
     public function __construct(
         EngineInterface $engine,
-        TranslationFinder $finder,
+        BazingaJsTranslator $translator,
         RouterInterface $router,
         Filesystem $filesystem,
-        $localeFallback = '',
-        $defaultDomain  = '',
         array $activeLocales = array(),
         array $activeDomains = array()
     ) {
-        $this->engine         = $engine;
-        $this->finder         = $finder;
-        $this->router         = $router;
-        $this->filesystem     = $filesystem;
-        $this->localeFallback = $localeFallback;
-        $this->defaultDomain  = $defaultDomain;
-        $this->activeLocales  = $activeLocales;
-        $this->activeDomains  = $activeDomains;
+        $this->engine = $engine;
+        $this->translator = $translator;
+        $this->router = $router;
+        $this->filesystem = $filesystem;
+
+        // Add fallback locale to active locales if missing
+        $this->activeLocales = array_unique(array_merge($activeLocales, $translator->getFallbackLocales()));
+        $this->activeDomains = $activeDomains;
     }
 
     /**
-     * Get array of active locales
+     * Get array of active locales.
      */
     public function getActiveLocales()
     {
@@ -94,24 +77,11 @@ class TranslationDumper
     }
 
     /**
-     * Get array of active locales
+     * Get array of active locales.
      */
     public function getActiveDomains()
     {
         return $this->activeDomains;
-    }
-
-    /**
-     * Add a translation loader if it does not exist.
-     *
-     * @param string          $id     The loader id.
-     * @param LoaderInterface $loader A translation loader.
-     */
-    public function addLoader($id, $loader)
-    {
-        if (!array_key_exists($id, $this->loaders)) {
-            $this->loaders[$id] = $loader;
-        }
     }
 
     /**
@@ -121,15 +91,12 @@ class TranslationDumper
      */
     public function dump($target = 'web/js')
     {
-        $route         = $this->router->getRouteCollection()->get('bazinga_jstranslation_js');
-        $requirements  = $route->getRequirements();
-        $formats       = explode('|', $requirements['_format']);
-
-        $routeDefaults = $route->getDefaults();
-        $defaultFormat = $routeDefaults['_format'];
+        $route = $this->router->getRouteCollection()->get('bazinga_jstranslation_js');
+        $requirements = $route->getRequirements();
+        $formats = explode('|', $requirements['_format']);
 
         $parts = array_filter(explode('/', $route->getPattern()));
-        $this->filesystem->remove($target. '/' . current($parts));
+        $this->filesystem->remove($target.'/'.current($parts));
 
         $this->dumpConfig($route, $formats, $target);
         $this->dumpTranslations($route, $formats, $target);
@@ -141,8 +108,8 @@ class TranslationDumper
             $file = sprintf('%s/%s',
                 $target,
                 strtr($route->getPattern(), array(
-                    '{domain}'  => 'config',
-                    '{_format}' => $format
+                    '{domain}' => 'config',
+                    '{_format}' => $format,
                 ))
             );
 
@@ -154,9 +121,9 @@ class TranslationDumper
 
             file_put_contents(
                 $file,
-                $this->engine->render('BazingaJsTranslationBundle::config.' . $format . '.twig', array(
-                    'fallback'      => $this->localeFallback,
-                    'defaultDomain' => $this->defaultDomain,
+                $this->engine->render('BazingaJsTranslationBundle::config.'.$format.'.twig', array(
+                    'fallbacks' => $this->translator->getFallbackLocales(),
+                    'defaultDomain' => $this->translator->getDefaultDomain(),
                 ))
             );
         }
@@ -167,8 +134,8 @@ class TranslationDumper
         foreach ($this->getTranslations() as $locale => $domains) {
             foreach ($domains as $domain => $translations) {
                 foreach ($formats as $format) {
-                    $content = $this->engine->render('BazingaJsTranslationBundle::getTranslations.' . $format . '.twig', array(
-                        'translations'   => array($locale => array(
+                    $content = $this->engine->render('BazingaJsTranslationBundle::getTranslations.'.$format.'.twig', array(
+                        'translations' => array($locale => array(
                             $domain => $translations,
                         )),
                         'include_config' => false,
@@ -177,8 +144,8 @@ class TranslationDumper
                     $file = sprintf('%s/%s',
                         $target,
                         strtr($route->getPattern(), array(
-                            '{domain}'  => sprintf('%s/%s', $domain, $locale),
-                            '{_format}' => $format
+                            '{domain}' => sprintf('%s/%s', $domain, $locale),
+                            '{_format}' => $format,
                         ))
                     );
 
@@ -202,47 +169,19 @@ class TranslationDumper
         $translations = array();
         $activeLocales = $this->activeLocales;
         $activeDomains = $this->activeDomains;
-        foreach ($this->finder->all() as $file) {
-            list($extension, $locale, $domain) = $this->getFileInfo($file);
 
-            if ( (count($activeLocales) > 0 && !in_array($locale, $activeLocales)) || (count($activeDomains) > 0 && !in_array($domain, $activeDomains)) ) {
-                continue;
-            }
+        foreach ($activeLocales as $locale) {
+            $translations[$locale] = array();
 
-            if (!isset($translations[$locale])) {
-                $translations[$locale] = array();
-            }
-
-            if (!isset($translations[$locale][$domain])) {
-                $translations[$locale][$domain] = array();
-            }
-
-            if (isset($this->loaders[$extension])) {
-                $catalogue = $this->loaders[$extension]
-                    ->load($file, $locale, $domain);
-
-                $translations[$locale][$domain] = array_replace_recursive(
-                    $translations[$locale][$domain],
-                    $catalogue->all($domain)
-                );
+            $catalogue = $this->translator->getCatalogue($locale);
+            foreach ($activeDomains as $domain) {
+                $messages = $catalogue->all($domain);
+                if (!empty($messages)) {
+                    $translations[$locale][$domain] = $messages;
+                }
             }
         }
 
         return $translations;
-    }
-
-    private function getFileInfo($file)
-    {
-        $filename  = explode('.', $file->getFilename());
-        $extension = end($filename);
-        $locale    = prev($filename);
-
-        $domain = array();
-        while (prev($filename)) {
-            $domain[] = current($filename);
-        }
-        $domain = implode('.', $domain);
-
-        return array($extension, $locale, $domain);
     }
 }
